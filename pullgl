@@ -58,5 +58,6 @@ mr = client.create_merge_request(project, description, { source_branch: branch, 
 
 # Add approvers
 # client.edit_merge_request_approvers(project, mr.iid, { approver_ids: approvers(cookbook), approver_groups: [] })
+# TODO: get the gitlab api gem to work and replace the curl call
 puts "add approvers"
 puts `curl -i -X PUT --header "PRIVATE-TOKEN: #{@token}" -H "Content-Type: application/json" -d '{"approver_ids": [#{approvers(cookbook).join(',')}], "approver_group_ids": [] }'  #{@url}/projects/chef%2Fcookbooks%2F#{cookbook}/merge_requests/#{mr.iid}/approvers 2>/dev/null`
