@@ -1,0 +1,61 @@
+#!/usr/bin/env ruby 
+# Create a pull request from the current repo and branch
+# Requires gem atlassian-stash and ~/.stashconfig.yml
+# 
+# I use this .stashconfig.yml
+# ---
+# stash_url: https://git.nordstrom.net
+# username: xmjg
+# ssl_no_verify: true
+
+cookbook = File.basename(Dir.getwd)
+puts "In cookbook #{cookbook}"
+
+# rubocop_rc = system("rubocop -a")
+# foodcritic_rc = system("foodcritic .")
+# exit unless rubocop_rc && foodcritic_rc
+
+branch = `git rev-parse --abbrev-ref HEAD 2>/dev/null`.split(/\n/)[0]
+description = `git log -1 --pretty=%B --oneline`
+description.gsub!(/'/, '')
+puts `git push origin #{branch}`
+
+# Add Jeff, Jim, Jacob, Doan, Travis, Emory, Elijah
+base = %w(@QW7G @XAAL @X3FH @x1pt @X3FG @BRI4 @B5E2)
+others = []
+
+if cookbook =~ /^oa_/
+  others = others | %w(@AKE1 @X73A)
+end
+
+if cookbook =~ /rewards/
+  others = others | %w(@X3E6)
+end
+
+if cookbook =~ /ldom/
+  others = others | %w(@X1S4 )
+end
+
+# Randomly select 1 others
+others = others | %w(@X1S4 @X3N6 @X3FH).sample(1)
+puts "Using branch #{branch} with these approvers #{base} #{others}"
+puts "Description #{description}"
+puts "Pull request for branch #{branch} Password:"
+puts `stash pull-request -d '#{description}' #{branch} master #{base.concat(others).join(' ')} 2>&1`
+#  puts `stash pull-request #{branch} -d '#{description}' master 2>&1`
+
+# bri4  Elijah
+# qw7g  Jeff
+# xaal  Parry
+# x3fh  Jacob
+# xaal  parry
+# x1pt  Doan
+# xok6  Jack
+# x3n6  Jason
+# x1s4  Jim H
+# qj2t  Satya
+#       Shiva
+# x3e6  Tim Long
+# aexd  Harman
+# x73a  Ravindra Gaddam
+# cuql  Rajender

@@ -1,0 +1,62 @@
+#!/usr/bin/env ruby 
+# Create a pull request from the current repo and branch
+#
+# Setup is required!
+# install gitlab gem
+# Create a gitlab access token and save it at ~/.ssh/gitlab_token
+# Lookup the users you want to add
+# Edit the approver filters
+# 
+require 'gitlab'
+
+def client
+  @client ||= Gitlab.client(endpoint: @url, private_token: @token)
+end
+
+def approvers(cookbook)
+
+  # look up the users in gitlab and get their id
+  ids = { Elijah: 878, Travis: 314, Emory: 2231, Andrew: 774, Will: 530,
+        Jeff: 642, Parry: 289, Jacob: 312, Doan: 772, Jack: 660,
+        Jason: 279, JimH: 863, Shiva: 945, Ravindra: 1659, Rajendar: 2081 }
+
+  base = %i(Parry Jacob Doan Andrew Elijah Will)
+  others = []
+  others = others | %i(Shiva Ravindra Rajendar) if cookbook =~ /^oa_/
+  others = others | %i(JimH Jack Doan) if cookbook =~ /ldom/
+  others = others | %i(Elijah ) if cookbook =~ /restaurant/
+  others = others | %i(Jason Travis Emory Jeff Jack JimH).sample(1) # one random approver
+  base = base | others
+  apps = base.map { |name| ids[name] }
+  puts "Approvers #{apps}"
+  apps
+
+end
+
+cookbook = File.basename(Dir.getwd)
+@token = File.read(File.expand_path('~/.ssh/gitlab_token')).chomp
+@url = 'https://gitlab.nordstrom.com/api/v4'
+puts "In cookbook #{cookbook}"
+
+# Extract repo information
+branch = `git rev-parse --abbrev-ref HEAD 2>/dev/null`.split(/\n/)[0]
+description = `git log -1 --pretty=%B --oneline`
+description.gsub!(/'/, '')
+fetch = `git remote show origin|awk '/Fetch URL:/ {print $3}'`.chomp
+project = fetch.gsub(/git@gitlab.nordstrom\.com:/, '').gsub(/\.git/, '')
+unless fetch =~ /git@gitlab/
+  puts "Origin #{fetch} was not updated to gitlab"
+end
+
+# push the branch to gitlab
+puts "push branch #{branch} to #{project}"
+puts `git push origin #{branch}`
+
+# Create a merge request`
+puts "create a merge request from  branch #{branch} to master in project #{project}"
+mr = client.create_merge_request(project, description, { source_branch: branch, target_branch: 'master',  })
+
+# Add approvers
+# client.edit_merge_request_approvers(project, mr.iid, { approver_ids: approvers(cookbook), approver_groups: [] })
+puts "add approvers"
+puts `curl -i -X PUT --header "PRIVATE-TOKEN: #{@token}" -H "Content-Type: application/json" -d '{"approver_ids": [#{approvers(cookbook).join(',')}], "approver_group_ids": [] }'  #{@url}/projects/chef%2Fcookbooks%2F#{cookbook}/merge_requests/#{mr.iid}/approvers 2>/dev/null`
