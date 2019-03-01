@@ -8,6 +8,7 @@
 # Edit the approver filters
 # 
 require 'gitlab'
+require 'erb'
 
 def client
   @client ||= Gitlab.client(endpoint: @url, private_token: @token)
@@ -44,7 +45,9 @@ description = `git log -1 --pretty=%B --oneline`
 description.gsub!(/'/, '')
 fetch = `git remote show origin|awk '/Fetch URL:/ {print $3}'`.chomp
 project = fetch.gsub(/git@gitlab.nordstrom\.com:/, '').gsub(/\.git/, '')
-unless fetch =~ /git@gitlab/
+url_project = ERB::Util.url_encode(project)
+puts "ENCODE #{project} #{url_project}"
+unless fetch =~ /git@gitlab.nordstrom.com:/
   puts "Origin #{fetch} was not updated to gitlab"
 end
 
@@ -60,4 +63,5 @@ mr = client.create_merge_request(project, description, { source_branch: branch, 
 # client.edit_merge_request_approvers(project, mr.iid, { approver_ids: approvers(cookbook), approver_groups: [] })
 # TODO: get the gitlab api gem to work and replace the curl call
 puts "add approvers"
-puts `curl -i -X PUT --header "PRIVATE-TOKEN: #{@token}" -H "Content-Type: application/json" -d '{"approver_ids": [#{approvers(cookbook).join(',')}], "approver_group_ids": [] }'  #{@url}/projects/chef%2Fcookbooks%2F#{cookbook}/merge_requests/#{mr.iid}/approvers 2>/dev/null`
+puts "ENCODE #{url_project}"
+puts `curl -i -X PUT --header "PRIVATE-TOKEN: #{@token}" -H "Content-Type: application/json" -d '{"approver_ids": [#{approvers(cookbook).join(',')}], "approver_group_ids": [] }'  #{@url}/projects/#{url_project}/merge_requests/#{mr.iid}/approvers 2>/dev/null`
