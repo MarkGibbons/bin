@@ -4,7 +4,7 @@
 # Setup is required!
 # install gitlab gem
 # Create a gitlab access token and save it at ~/.ssh/gitlab_token
-# Lookup the users you want to add
+# Lookup the users you want to add. https://gitlab.nordstrom.com/api/v4/users?username=GibbonsMark for example
 # Edit the approver filters
 # 
 require 'gitlab'
