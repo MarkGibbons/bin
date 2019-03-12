@@ -1,0 +1,65 @@
+#!/usr/bin/env ruby 
+# Create a pull request from the current repo and branch
+#
+# Setup is required!
+# install gitlab gem
+# Create a gitlab access token and save it at ~/.ssh/gitlab_token
+# Lookup the users you want to add
+# Edit the approver filters
+# 
+require 'gitlab'
+require 'erb'
+
+def client
+  @client ||= Gitlab.client(endpoint: @url, private_token: @token)
+end
+
+def approvers(cookbook)
+
+  # look up the users in gitlab and get their id
+  ids = { someone: 1, other: 2, conditional:, 3, extra: 455 }
+
+  base = %i(someone other)
+  others = []
+  others = others | %i(conditional) if cookbook =~ /^oa_/
+  others = others | %i(conditional other extra).sample(1) # one random approver
+  base = base | others
+  apps = base.map { |name| ids[name] }
+  apps
+
+end
+
+cookbook = File.basename(Dir.getwd)
+@token = File.read(File.expand_path('~/.ssh/gitlab_token')).chomp
+@url = 'https://gitlab.nordstrom.com/api/v4'
+puts "In cookbook #{cookbook}"
+
+# Extract repo information
+branch = `git rev-parse --abbrev-ref HEAD 2>/dev/null`.split(/\n/)[0]
+description = `git log -1 --pretty=%B --oneline`
+description.gsub!(/'/, '')
+fetch = `git remote show origin|awk '/Fetch URL:/ {print $3}'`.chomp
+project = fetch.gsub(/git@gitlab.nordstrom\.com:/, '').gsub(/\.git/, '')
+url_project = ERB::Util.url_encode(project)
+unless fetch =~ /git@gitlab.nordstrom.com:/
+  puts "Origin #{fetch} was not updated to gitlab"
+end
+
+# push the branch to gitlab
+puts "push branch #{branch} to #{project}"
+puts `git push origin #{branch}`
+
+# Create a merge request`
+puts "create a merge request from  branch #{branch} to master in project #{project}"
+mr = client.create_merge_request(project, description, { source_branch: branch, target_branch: 'master',  })
+
+# Add approvers
+# client.edit_merge_request_approvers(project, mr.iid, { approver_ids: approvers(cookbook), approver_groups: [] })
+puts "add approvers"
+
+mr_json = `curl -X PUT --header "PRIVATE-TOKEN: #{@token}" -H "Content-Type: application/json" -d '{"approver_ids": [#{approvers(cookbook).join(',')}], "approver_group_ids": [] }'  #{@url}/projects/#{url_project}/merge_requests/#{mr.iid}/approvers 2>/dev/null`
+
+mr = JSON.parse(mr_json)
+mr['approvers'].each do |approver|
+  puts approver['user']['name']
+end
