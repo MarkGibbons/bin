@@ -1,0 +1,29 @@
+#!/usr/bin/env ruby 
+# Change the metadata of a cookbook to point to gitlab
+
+# .git/config
+def gitconfig
+  return unless File.exist?('.git/config')
+  lines = File.read('.git/config').split("\n")
+  lines = lines.map do |line|
+    md = /^\s*url\s*=\s*ssh:\/\/git@git.nordstrom.net\/its\/(?<reponame>[\w_]+).git/.match(line)
+    line = "        url = git@gitlab.nordstrom.com:chef/cookbooks/#{md[:reponame]}.git" if md
+    line
+  end
+  File.write('.git/config', lines.join("\n"))
+end
+
+# metadata.rb
+def metadata
+  return unless File.exist?('metadata.rb')
+  lines = File.read('metadata.rb').split("\n")
+  lines = lines.map do |line|
+    md = /^\s*source_url\s+'https:\/\/git.nordstrom.net\/projects\/ITS\/repos\/(?<reponame>[\w_]+)'/.match(line)
+    line = "source_url       'https://gitlab.nordstrom.com/chef/cookbooks/#{md[:reponame]}'" if md
+    line
+  end
+  File.write('metadata.rb', lines.join("\n"))
+end
+
+metadata
+gitconfig
