@@ -1,0 +1,85 @@
+#!/opt/chefdk/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def user_search(user)
+  begin
+    results = client.user_search(user)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  results
+end
+
+def team_member(project, id)
+  begin
+    results = client.team_member(project, id)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  results
+end
+
+def add_team_member(project, id, access)
+  begin
+    results = client.add_team_member(project, id, access)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  results
+end
+
+def edit_team_member(project, id, access)
+  begin
+    results = client.edit_team_member(project, id, access)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  results
+end
+
+def client
+  @client ||= Gitlab.client(endpoint: @url, private_token: @token)
+end
+
+
+@token = `knife vault show restaurant gitlab_production | awk '/key:/ {print $2}'`.chomp
+@url = 'https://gitlab.nordstrom.com/api/v4'
+projects = [
+  'chef/cookbooks/opftu',
+  'chef/cookbooks/opftu_prd',
+  'chef/cookbooks/opftu_tst',
+  'chef/cookbooks/patch_ftu'
+]
+
+# a list of email addresses is best
+users = [
+  'Biaett, Aaron',
+  'Dapping, Justin',
+  'Decker',
+  'Edelson, Tracie',
+  'Hay, Jeff',
+  'Hubbell',
+  'Muthusamy, Mohankumar',
+  'Ngo, Dan',
+  'Pappachan',
+  'Sunitha',
+  'Rhoades',
+  'mark.gibbons@nordstrom.com'
+]
+   # 'Decker, Jeremy',
+   # 'Hubbell, Shannon',
+   # 'Rhoades, Matthew'
+   # 'Pappachan, Ancy',
+   # 'Pb, Sunitha',
+
+users.each do |user|
+  uid =  user_search(user)[0].id
+  projects.each do |project|
+    found = team_member(project, uid)
+    add_team_member(project, uid, 40) unless found
+    edit_team_member(project, uid, 40) if found
+    puts "Set #{user} on #{project} as maintainer"
+  end
+end
+
