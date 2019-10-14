@@ -17,16 +17,19 @@ end
 def approvers(cookbook)
 
   # look up the users in gitlab and get their id
-  ids = { Elijah: 878, Travis: 314, Emory: 2231, Andrew: 774, Will: 530,
+  ids = { Travis: 314, Emory: 2231, Andrew: 774, Will: 530,
         Jeff: 642, Parry: 289, Jacob: 312, Doan: 772, Jack: 660,
-        Jason: 279, JimH: 863, Shiva: 945, Ravindra: 1659, Rajendar: 2081 }
+        Jason: 279, JimH: 863, Shiva: 945, Ravindra: 1659, Rajendar: 2081, JOliver: 1737 }
 
-  base = %i(Parry Jacob Doan Andrew Elijah Will)
+  base = %i(Parry Jacob Doan Andrew Will)
   others = []
+  others = others | %i(Jason)  if cookbook =~ /go/
+  others = others | %i(Emory JOliver)  if cookbook =~ /^opvmw/
   others = others | %i(Shiva Ravindra Rajendar) if cookbook =~ /^oa_/
   others = others | %i(JimH Jack Doan) if cookbook =~ /ldom/
-  others = others | %i(Elijah ) if cookbook =~ /restaurant/
+  others = others | %i(Emory ) if cookbook =~ /restaurant/
   others = others | %i(Jason Travis Emory Jeff Jack JimH).sample(1) # one random approver
+  base = %i(Parry Emory) if cookbook =~ /munin/
   base = base | others
   apps = base.map { |name| ids[name] }
   puts "Approvers #{apps}"
@@ -59,7 +62,7 @@ puts "create a merge request from  branch #{branch} to master in project #{proje
 mr = client.create_merge_request(project, description, { source_branch: branch, target_branch: 'master',  })
 
 # Add approvers
-# client.edit_merge_request_approvers(project, mr.iid, { approver_ids: approvers(cookbook), approver_groups: [] })
+# client.edit_merge_request_approvers(project, mr.iid, { approver_ids: approvers(cookbook), approver_group_ids: [] })
 # TODO: get the gitlab api gem to work and replace the curl call
 puts "add approvers"
 

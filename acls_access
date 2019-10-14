@@ -1,0 +1,35 @@
+#!/opt/chef-workstation/embedded/bin/ruby
+require 'json'
+
+# /Users/xmjg/dev/chef/acls
+# Get the json files
+# each file
+#   read the group auths for create, update, delete, grant
+#   report any auth for other than admin
+
+found = {}
+Dir["/Users/xmjg/dev/chef/acls/**/*.json"].each do |file|
+  # file to json
+  # go through group sections
+  # report anyone not admin
+  auth = JSON.parse(File.read(file))
+  dir = File.dirname(file)
+  object_type = File.basename(dir)
+  found[object_type] ||= []
+  auth.each do |key, class_auth|
+    next if key == "read"
+    groups = class_auth['groups'] - ['admins']
+    if groups.any?
+      puts 
+      puts file
+      puts key
+      puts groups
+      found[object_type] << groups
+    end
+  end
+end
+  found.each do |type, groups|
+    puts '=============='
+    puts "type #{type}"
+    puts "group #{groups.flatten.sort.uniq.join(',')}"
+  end
