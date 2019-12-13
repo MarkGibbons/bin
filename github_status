@@ -1,0 +1,68 @@
+#!/usr/bin/env ruby
+
+require 'net/http'
+require 'uri'
+require 'nokogiri'
+
+# Array of projects to check
+projects = %w[
+  sous-chefs/atom
+  go-chef/chef
+  nordstrom/fileutils
+  nordstrom/chefdk_bootstrap
+  sous-chefs/line
+  sous-chefs/vagrant
+]
+
+# loop through the projects
+  # get issues
+  #    each issue get title
+  #    each issue date
+  # get pull requests
+  #    each issue get title
+  #    each issue date
+  # print summary 
+  #   print project issue count pull count
+  #   print issue titles
+
+def parse_issues(lines)
+  issues = lines.split(/\n/).grep(/data-hovercard-type="issue"/)
+  issues.map do |issue|
+    doc = Nokogiri::HTML.fragment(issue)
+    doc.text
+  end
+end
+
+def parse_pulls(lines)
+  issues = lines.split(/\n/).grep(/data-hovercard-type="pull_request"/)
+  issues.map do |issue|
+    doc = Nokogiri::HTML.fragment(issue)
+    doc.text
+  end
+end
+
+def get_issues(project)
+  uri = URI.parse("https://github.com/#{project}/issues")
+  response = Net::HTTP.get_response(uri)
+  parse_issues(response.body)
+end
+
+def get_pulls(project)
+  uri = URI.parse("https://github.com/#{project}/pulls")
+  response = Net::HTTP.get_response(uri)
+  parse_pulls(response.body)
+end
+
+def output(lines, type)
+  lines.each do |line|
+    puts "        * #{type} #{line}"
+  end
+end
+
+projects.each do |project|
+   issues = get_issues(project)
+   pulls  = get_pulls(project)
+   puts "Project #{project} issues #{issues.length} pull requests #{pulls.length}"
+   output(issues, 'issue')
+   output(pulls, 'pull')
+end
