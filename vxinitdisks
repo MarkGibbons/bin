@@ -1,0 +1,9 @@
+#!/bin/ksh
+
+disks=`vxdisk list|grep nolabel|awk '/emc2/ {print $1}'`
+
+for disk in `echo ${disks}` ; do
+   vol=`vxdisk list ${disk}|awk '/state=enabled/ {print $1}'|head -1`
+   format  ${vol} -f formatlabel
+   vxdisksetup -i ${disk} format=sliced
+done

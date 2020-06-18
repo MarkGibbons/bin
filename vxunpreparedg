@@ -1,0 +1,13 @@
+#!/bin/ksh
+# $1 = disk group name
+
+if [[ -z "${1}" ]] ; then
+	echo The disk group must be specified
+fi
+
+for vol in `vxprint -g $1 |grep ^v|egrep -v '_dcl|_dco'|awk '{print $2}'|sort -u`
+do
+	echo unprepare $1 $vol
+ 	sudo vxsnap -g $1 unprepare ${vol}
+done
+

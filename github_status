@@ -6,10 +6,12 @@ require 'nokogiri'
 
 # Array of projects to check
 projects = %w[
-  sous-chefs/atom
   go-chef/chef
-  nordstrom/fileutils
+  nordstrom/chef_ca
+  nordstrom/chefdk-julia
+  nordstrom/fileutils-cookbook
   nordstrom/chefdk_bootstrap
+  sous-chefs/atom
   sous-chefs/line
   sous-chefs/vagrant
 ]

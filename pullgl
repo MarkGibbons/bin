@@ -17,13 +17,14 @@ end
 def approvers(cookbook)
 
   # look up the users in gitlab and get their id
-  ids = { Travis: 314, Emory: 2231, Andrew: 774, Will: 530,
+  ids = { Travis: 314, Emory: 2231, Andrew: 774, Will: 530, Curry: 4468,
         Jeff: 642, Parry: 289, Jacob: 312, Doan: 772, Jack: 660,
         Jason: 279, JimH: 863, Shiva: 945, Ravindra: 1659, Rajendar: 2081, JOliver: 1737, RodD: 910, Sudeep: 908, Emily: 398, Ameer: 1462, Sammy: 1567 }
 
-  base = %i(Parry Jacob Doan Andrew Will)
+  base = %i(Parry Jacob Doan Andrew Will Curry)
   others = []
   others = others | %i(Travis Jason Emory Andrew Jeff Jacob Doan RodD Sudeep Emily Ameer Sammy)  if cookbook =~ /frontend|test_utilities|stacktracker|onprem|structure|quota|huggin/i
+  others = others | %i(Jon)  if cookbook =~ /huggin/
   others = others | %i(Jason)  if cookbook =~ /go/
   others = others | %i(Emory JOliver)  if cookbook =~ /^opvmw/
   others = others | %i(Shiva Ravindra Rajendar) if cookbook =~ /^oa_/

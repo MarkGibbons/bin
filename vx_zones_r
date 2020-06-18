@@ -1,0 +1,48 @@
+#!/bin/ksh
+# In order to patch veritas the local zones need to be startable.
+# These zones may not have any vx file systems mounted.
+# This script, to be run in single usermode, for each zone exports the zone configuration, removes the file systems.
+# Run with the -r option it removes the file systems from the zone configurations.
+# Run with the -o option it returns the original the file systems to the zone configurations.
+
+DATE=`date +20%y%m%d`
+usage="Usage ${0##*/} -r | -o  "
+OS=`uname -a | awk '{print $3}'`
+
+if test "$OS" != "5.10" ; then
+   print "$0: This action only makes sense on Solaris 10."
+   exit 0
+fi
+ 
+if test -z "$1" ; then
+   print "$usage"
+   print An argument is required. -r to remove the zonecfg file system definition. -o to use the original configuration.
+   exit 0
+fi
+
+REMOVE="yes"
+
+# -r option
+    for zone in x0319vt107 x0319vt108; do
+        if [[ -f /var/tmp/${zone}_zonecfg ]] ; then
+            echo "$0: Found previous zonecfg file /var/tmp/${zone}_zonecfg, be very careful"
+            if test -a /var/tmp/${zone}_zonecfg.${DATE} ; then
+                print "$0: The save destination is already in used. Figure out the backups."
+                exit 1
+            else
+                print "$0: Saving the previous zonecfg export for zone ${zone}."
+                echo /var/tmp/${zone}_zonecfg.${DATE}
+                mv /var/tmp/${zone}_zonecfg /var/tmp/${zone}_zonecfg.${DATE}
+            fi
+        fi
+        read a?"Update zone ${zone} by removing file system definitions y|n"
+        if [[ "$a" = "y" ]] ; then
+            print "$0: Exporting zone definition for ${zone} to /var/tmp/${zone}_zonecfg"
+            /usr/sbin/zonecfg -z ${zone} export > /var/tmp/${zone}_zonecfg
+            print "$0: Remove filesytem definitions from ${zone}"
+            awk '/dir=/ {print "remove fs " $2}' </var/tmp/${zone}_zonecfg 
+            awk '/dir=/ {print "remove fs " $2}' </var/tmp/${zone}_zonecfg | /usr/sbin/zonecfg -z ${zone}
+        fi
+    done
+    exit 0
+

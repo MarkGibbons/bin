@@ -1,0 +1,11 @@
+#!/bin/ksh
+zonepath=`zonecfg -z $1 export|awk -F'=' '/zonepath/ {print $2}'` 
+mkdir -p ${zonepath}/dev/odm
+cp -rp /var/svc/manifest/system/vxfs /zones/$1/root//var/svc/manifest/system/. 
+cp -rp /lib/svc/method/vxfsldlic /zones/$1/root/lib/svc/method/vxfsldlic 
+cp -rp /var/svc/manifest/system/vxodm /zones/$1/root//var/svc/manifest/system/. 
+cp -rp /lib/svc/method/odm /zones/$1/root/lib/svc/method/. 
+zlogin $1 svccfg import /var/svc/manifest/system/vxfs/vxfsldlic.xml 
+zlogin $1 svccfg import /var/svc/manifest/system/vxodm/odm.xml 
+zlogin $1 svcadm enable svc:/system/vxfs/vxfsldlic:default 
+zlogin $1 svcadm enable svc:/system/vxodm:default 

@@ -25,5 +25,5 @@ def metadata
   File.write('metadata.rb', lines.join("\n"))
 end
 
-metadata
+# metadata
 gitconfig

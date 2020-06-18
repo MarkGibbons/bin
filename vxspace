@@ -1,0 +1,4 @@
+#!/bin/ksh
+# vx disk space allocated
+vxprint|egrep '^dm'|grep 0457|awk '{print $5 " " $3}'|awk '{print $2 " " $1/2097152}'
+vxprint|egrep '^dm'|grep 0457|awk '{print $5}'|awk '{s+=$1} END {print s}'|awk '{print "total " $1/2097152}'

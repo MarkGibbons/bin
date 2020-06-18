@@ -1,0 +1,20 @@
+#!/bin/ksh
+
+# $1 = array to use 
+# $2 = disk group name
+# Useful for moving to a new array.  Replace 4699 with the new array name.
+# Depends on the luns having the array SN in their name
+# Add the luns name them <array id>_xxxxx
+# All the volumes in the disk group will be mirrored to the disks in the new array
+
+if [[ $# -lt 2 ]] ; then
+    echo mirrordg array dg
+    exit 4
+fi
+
+disks=''
+for d in `vxprint -g $2 |egrep '^dm' |grep $1 |awk '{print $2}'`; do
+    disks="$disks $d"
+done
+disks=`echo $disks | tr ' ' ','`
+echo ${disks}

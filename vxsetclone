@@ -1,0 +1,8 @@
+#!/bin/ksh
+
+disks='296a 296e 2972 2976 297a 297e 2982 2986 298a 298e 2992 2996 299a 299e'
+
+for disk in `echo ${disks}` ; do
+   vxdisk set emc4_${disk} clone=on
+   echo emc4_${disk}
+done

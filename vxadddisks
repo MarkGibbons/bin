@@ -1,0 +1,32 @@
+#!/bin/ksh
+# Devices should be defined to veritas and in the online, invalid state with no assigned group.
+
+if [[ ${#} -lt 3 ]] ; then
+  cat <<-EOF
+  usage: $0 <vxarray> <array> <diskgroup> <nameprefix>
+  example: $0 emc0 1835 oradg01 p14
+	EOF
+  exit 4
+# $1 = emcX filter the devices to an array
+# $2 = <array #> Array corresponding to emcX
+# $3 = disk group.  Add the devices to this disk group
+# $4 = name prefix.  Build devices names  <prefix>_array_dXXXX
+fi
+
+array=$2
+dg=$3
+prefix=$4
+
+if [[ -n "${prefix}" ]] ; then
+  prefix=${prefix}_
+fi
+
+# emc0_2bb0    auto:none       -            -            online invalid
+
+disks=`sudo vxdisk list|egrep "^$1"|awk '/online thinrclm/ {print $0}'|awk '$4 == "-" {print $1}'`
+
+for disk in `echo ${disks}` ; do
+   diskid=`echo ${disk}|awk -F'_' '{print $2}'|tr "[a-f]" "[A-F]"`
+   sudo vxdisksetup -i ${disk} format=sliced
+   sudo vxdg -g ${dg} adddisk ${prefix}${array}_d${diskid}=${disk}
+done

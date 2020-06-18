@@ -1,0 +1,6 @@
+#!/bin/ksh
+vxupgrade=/opt/VRTSvxfs/sbin/vxupgrade
+for mp in `awk '/vx/ {print $3}' /etc/vfstab` ; do
+   lvl=`$vxupgrade $mp |awk '{print $6}'`
+   echo $mp $lvl
+done

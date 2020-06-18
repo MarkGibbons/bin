@@ -1,0 +1,23 @@
+#!/bin/ksh
+vxupgrade=/opt/VRTSvxfs/sbin/vxupgrade
+for mp in `awk '/vx/ {print $3}' /etc/vfstab` ; do
+   lvl=`$vxupgrade $mp |awk '{print $6}'`
+   echo $mp $lvl
+   if [[ "$lvl" -eq 4  ]] ; then
+      $vxupgrade -n 5 $mp
+      $vxupgrade -n 6 $mp
+      $vxupgrade -n 7 $mp
+   fi
+   if [[ "$lvl" -eq 5  ]] ; then
+      $vxupgrade -n 6 $mp
+      $vxupgrade -n 7 $mp
+   fi
+   if [[ "$lvl" -eq 6  ]] ; then
+      $vxupgrade -n 7 $mp
+   fi
+   if [[ "$lvl" -eq 7  ]] ; then
+      $vxupgrade -n 8 $mp
+      $vxupgrade -n 9 $mp
+      $vxupgrade -n 10 $mp
+   fi
+done

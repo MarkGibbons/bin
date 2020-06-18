@@ -1,0 +1,14 @@
+#!/bin/ksh
+# $1 = disk group name
+# $2 = array search for it in the disk names
+
+if [[ -z "${1}" ]] ; then
+	echo The array must be specified
+fi
+
+for plex in `vxprint -g $1 |egrep '^sd'|grep $2|egrep -v '_dcl|_dco' |awk '{print $3}'|sort -u`
+do
+	echo Unplex -g $1 -o rm dis $plex
+ 	sudo vxplex -g $1 -o rm dis $plex
+done
+

@@ -1,0 +1,266 @@
+#!/opt/chef/embedded/bin/ruby
+#
+# Reference documentation
+# https://www.veritas.com/support/en_US/article.100033972  May 13 2018
+# https://www.veritas.com/support/en_US/article.100042973  Jan 23 2019
+#
+# Solaris 11 guest
+#   Verify the base os version, entire, is current enough
+#   Devices should have 2 paths to disk
+#   The root volume should be a dmp volume
+#   /etc/system should have controller level timeouts specified
+#   Veritas dmp_native_mode support should be turned on for ZFS support
+#   vdc.conf should set the retry time to 0
+#   Check that a reboot was done to pick up changes to vdc.conf
+# Solaris 10 guest
+#   Devices should have a single path to disk
+#   Veritas dmp_native_mode support should be turned off
+# Primary and Service 
+#   Devices for solaris 10 should use mpgroups
+#   Devices for solaris 10 mpgroup names should match the backend names
+#   Devices for solaris 11 should not use mpgroups
+#   Definitions on s-vds should match p-vds
+#   Vdisks should have matching vds devices
+#   Vdisks should have a 30 second timeout set
+
+require 'date'
+
+def solaris10_guests
+  %w[
+    x0319t221 x0319t222 x0319t224 x0319t225 x0319p143 x0319p164 x0319p198 x0319p200
+    x0319p202 x0319p203 x0319p208 x0319t05 x0319t197 x0319t226 x0319t30 x0319t58 x0319t01
+    x0319t16 x0319t02 x0319t236 x0319p05 x0319p12 x0319p158 x0319p30 x0319p50 x0319p51
+  ]
+end
+
+
+def system_setting(value)
+  system.include?(value) ? nil : "#{value} was not matched in /etc/system"
+end
+
+def system
+  @system ||= File.read('/etc/system').split("\n")
+end
+
+def check_entire
+  # Make sure the base maintenance level is current enough
+  version = `pkg list -H entire`.split("\s")[1]
+  sru_version(version)
+end
+
+def sru_version(version)
+  md = /0\.5\.11-0\.175\.3\.(?<version>.*)/.match(version)
+  md && Gem::Version.new('18.0.6.0') > Gem::Version.new(md[:version]) ? "Entire version #{version} is too old, it must be at least 18.0.6.0" : nil
+end
+
+def disks
+  # extract disks from format
+  return @disks if defined?(@disks)
+  lines = `echo | sudo format`.split("\n").grep(/virtual-devices/)
+  @disks = lines.map do |line|
+    line.gsub(/.*@.*@.*@/, '').to_i(16).to_s
+  end
+end
+
+def vdc_disks
+  # Extract the virtual disk numbers with setting in vdc.conf
+  @vdc_disks if defined?(vdc_disks)
+  return [] unless File.exist?('/platform/sun4v/kernel/drv/vdc.conf')
+  lines = File.read('/platform/sun4v/kernel/drv/vdc.conf')
+  md = /.*^timeout-noretry-list=(?<drive_list>.*?;)/m.match(lines)
+  @vdc_disks = md ? md[:drive_list].split(',') : []
+end
+
+def timeout_disks
+  # check that all of the virtual disks are specificed in vdc.conf
+  vdc_disks & disks == disks ? nil : "Some disks in #{disks.join(',')} are missing from vdc.conf #{vdc_disks.join(',')}"
+end
+
+def vdc_conf_implemented
+  # Make sure vdc.conf was modified before the last reboot so that the settings take effect
+  modified = File.mtime('/platform/sun4v/kernel/drv/vdc.conf')
+  _fieldname, boot_epoch = `kstat -p unix:0:system_misc:boot_time`.split("\s")
+  boot_at = Time.at(boot_epoch.to_i)
+  md = /^.*up?\s+(?<updays>\d+)/.match(`uptime`)
+  md && boot_at < modified ? 'The vdc.conf file was modified after reboot' : nil
+end
+
+def dmp_native(state)
+  md = /^dmp_native_support\s+(?<current>\w+)/.match(`sudo vxdmpadm gettune dmp_native_support`)
+  md && md[:current] == state ? nil : "Veritas dmp_native_support was expected to be #{state} instead it was #{md[:current]}"
+end
+
+def device_path_count(count)
+  # Solaris 10 and 11 use different numbers of device paths in guests
+  disks = `sudo vxdisk -x num_paths -p -q list`.split("\n")
+  problems = disks.reject do |disk|
+    _name, paths = disk.split("\s")
+    paths.to_i == count.to_i
+  end
+  problems.any? ? "These disks do not have #{count} path(s)\n#{problems.join("\n")}" : nil
+end
+
+def native_zfs(use_native)
+  # look for c#d#+ devices used by zfs
+  zfs_status = `zpool status`.split("\n").grep(/ONLINE/).reject { |line| /^\s*state:/.match(line) }
+  pool_devices = zfs_status.grep(/c\d+d\d+/)
+  if use_native
+    pool_devices.any? ? nil : "Native devices were not found in\n #{zfs_status.join("\n")}"
+  else
+    pool_devices.any? ? "These device should not be used natively, replace them with veritas device paths\n#{pool_devices.join("\n")}" : nil
+  end
+end
+
+def solaris_version
+  `uname -r`.chomp
+end
+
+def all_vols(_ldom)
+  # Get guest volume information
+  vols = []
+  vdsdevs = `sudo ldm list-domain -o disk -p primary`.split("\n").grep(/^\|vol=/)
+  vdsdevs.map do |vdsdev|
+    md = /\|vol=(?<vol>[\w\-]+)\|opts=(?<opts>[,\w\-]*)\|dev=(?<dev>[\/\w\-]+)\|mpgroup=(?<mpgroup>[\w\-]*)$/.match(vdsdev)
+    vols << { name: md[:vol], opts: md[:opts],  dev: md[:dev],  mpgroup: md[:mpgroup] } if md
+  end
+  vols
+end
+
+def server_vols
+  # Get the vdsvol definitions. The service and primary devices should be equal
+  errors = []
+  @primary_vols = all_vols('primary')
+  service_vols = all_vols('service')
+  errors <<  (@primary_vols == service_vols ? nil : 'Volume definitions in the primary domain do not match service')
+  errors <<  verify_mpgroup
+  errors.flatten.compact
+end
+
+def ldom_vdisks(guest)
+  guest_disks = []
+  disks = `sudo ldm list-domain -o disk -p #{guest}`.split("\n").grep(/VDISK/)
+  disks.each do |disk|
+    md = /VDISK\|name=(?<name>[\w\-]+)\|vol=(?<vol>[\w\-@]+)\|timeout=(?<timeout>[\w\-]+).*mpgroup=(?<mpgroup>[\w\-]*)/.match(disk)
+    guest_disks << { name: md[:name], vol: md[:vol], timeout: md[:timeout], mpgroup: md[:mpgroup] } if md
+  end
+  guest_disks
+end
+
+def verify_mpgroup
+  errors = []
+  # mpgroup is a substring of the device
+  @primary_vols.each do |vol|
+    next if  vol[:opt].to_s.include?('ro')
+    errors << (vol[:dev].to_s.include?(vol[:mpgroup].to_s) ? nil : "The mpgroup should match the device for #{vol[:dev]}")
+  end
+  errors
+end
+
+def verify_ldom(guest, vdisks)
+  errors = []
+  vdisks.each do |vdisk|
+    # find array entry in @primary that matches name in vdisk
+    primary_vol = @primary_vols.select { |vol| vol[:name] == vdisk[:vol].gsub(/@[ps]-vds$/, '') }
+    primary_vol = primary_vol[0] if primary_vol
+    if primary_vol
+      errors << "Guest #{guest}: Timeout should be 30 seconds for disk #{vdisk[:name]}" unless vdisk[:timeout].to_i == 30
+      errors << "Guest #{guest}: MPGROUP mismatch for vdisk #{vdisk[:mpgroup]} and vdsvol #{primary_vol[:mpgroup]}" unless vdisk[:mpgroup].to_s == primary_vol[:mpgroup].to_s
+    else
+      errors << "Guest #{guest}: Disk #{vdisk[:name]} not found the the primary domain" unless primary_vol
+    end
+    # mpgroup is specified if solaris 10 and not ro
+    # mpgroup is not specified if solaris 11 & vx
+    if solaris10_guests.include?(guest)
+      errors << (primary_vol[:mpgroup].to_s.size > 0 ? nil : "Guest #{guest}: Disk #{vdisk[:name]} should have a specified mpgroup #{primary_vol[:mpgroup]}") unless primary_vol[:opt].to_s.include?('ro')
+    else
+      errors << (primary_vol[:mpgroup].to_s.size > 0 ? "Guest #{guest}: Disk #{vdisk[:name]} should not have a specified mpgroup #{primary_vol[:mpgroup]}" : nil) if primary_vol[:dev].include?('vx')
+    end
+  end
+  errors
+end
+
+def guest_type
+  virtinfo = `sudo virtinfo -a`
+  return 'guest' if /LDoms guest$/ =~ virtinfo
+  return 'primary' if /control/ =~ virtinfo
+end
+
+def guests
+  guests = `sudo ldm list -p`.split("\n")
+  guests.grep(/^DOMAIN/).grep(/state=active/).reject { |g| g =~ /primary|service/ }.map do |guest|
+    guest.split('|')[1].gsub(/name=/, '')
+  end
+end
+
+def solaris11
+  # Solaris 11 - other than io domains
+  # ======================================
+  # vdc_timeout in /etc/system or set in the vdisk setting
+  @errors << system_setting('set vdc:vdc_timeout=30')
+  @errors << system_setting('set vdc:vdc_read_timeout=30')
+
+  # SRU 18.0.6 or higher
+  @errors << check_entire
+
+  # retry set in vdc.conf
+  @errors << timeout_disks
+
+  # Figure out if we rebooted after updating vdc.conf
+  @errors << vdc_conf_implemented
+
+  # settune dmp_native_support on
+  @errors << dmp_native('on')
+
+  # Each device has multiple paths
+  @errors << device_path_count(2)
+
+  # ZFS pools use dmp devices not native
+  @errors << native_zfs(false)
+end
+
+def solaris10
+  # solaris 10
+  # ================================
+  # Each device has a single path
+  @errors << device_path_count(1)
+
+  # Root pool uses native device
+  @errors << native_zfs(true)
+
+  # settune dmp_native_support should be off
+  @errors << dmp_native('off')
+end
+
+def primary(guests)
+  # on ldom server
+  # ================================
+
+  # Compare the primary and service domain vdsdev definitions
+  @errors << server_vols
+
+  # For each guest verify the virtual disks against the vdsdev definitions
+  guests.each do |guest|
+    vdisks = ldom_vdisks(guest)
+    @errors << verify_ldom(guest, vdisks)
+  end
+end
+
+# ================================
+# ================================
+
+# Figure out the type of server and check the disk configuration
+
+@errors = []
+type = guest_type
+os = solaris_version
+
+if os == '5.10' && type == 'guest'
+  solaris10
+elsif os == '5.11' && type == 'guest'
+  solaris11
+elsif os == '5.11' && type == 'primary'
+  primary(guests)
+end
+
+# print error found
+puts @errors.flatten.compact.map{|m| "Error: #{m}"}.join("\n")

@@ -1,0 +1,59 @@
+#!/opt/chef/embedded/bin/ruby
+
+def format_emc(udid, rarray)
+  # device pattern eelllll000 Enclosure, device, zeros
+  # array pattern mmmmmmmmmmmmmmmmmmmmmmmmmmmmeeee Manufacturer, enclosure
+  array = rarray[-4, 4]
+  # array = udid[-10, 2]
+  # 
+  # case array
+  # when '33'
+  #   array = '1835'
+  # when '35'
+  #   array = '1835'
+  # when '57'
+  #   array = '0457'
+  # when '65'
+  #   array = '1765'
+  # else
+  #   raise "Unrecognized emc array #{array} form udid #{udid}"
+  # end
+
+  device = udid[2, 5]
+  "emc_#{array}_#{device}"
+end
+
+def format_pure(udid)
+  # device pattern mmmmmmmmmmmmmmmmmmmmeeee000lllll Manufacturer, Enclosure, zeros, device
+  # array pattern mmmmmmmmmmmmeeee Manufacturer, enclosure
+  array = udid[-12, 4]
+  device = udid[-5, 5]
+  "pure_#{array}_#{device}"
+end
+
+def format_xtrem(udid)
+  # device pattern mmmmmmmeeeelllll Manufacturer, enclosure, device
+  # array pattern eeee000 Enclosure, zeros
+  array = udid[-9, 4]
+  device = udid[-5, 5]
+  "xtremio_#{array}_#{device}"
+end
+
+# Get an array of disks
+disks = {}
+disks_state = `vxdisk list |egrep -v '^disk_|aluadisk|DEVICE'|awk '{print $1 " " $5}'`.split("\n")
+disks_state.map do |disk_state|
+  disk, state = disk_state.split("\s")
+  disks[disk] = state
+end
+
+# for each get udid, print device and udid
+disks.each do |disk, state|
+  rawudid = `vxdisk list #{disk}|awk '/^udid:/ {print $2}' | awk -F'%' '{print $4}'`.chomp
+  rarray = `vxdisk list #{disk}|awk '/^udid:/ {print $2}' | awk -F'%' '{print $3}'`.chomp
+  rawudid.gsub!(/^5F/, '')
+  id = format_emc(rawudid, rarray) if disk =~ /emc/ || rawudid =~ /^5700|^6500/
+  id = format_pure(rawudid) if disk =~ /pure/ || rawudid =~ /^624A9370/
+  id = format_xtrem(rawudid) if disk =~ /xtrem/ || rawudid =~ /^514F0C/
+  puts "#{disk} #{rawudid} #{id} #{state}"
+end
