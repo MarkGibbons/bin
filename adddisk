@@ -1,0 +1,17 @@
+#!/bin/ksh
+
+# Run cfgadm, luxadm and devfsadm to add disk on Sun branded cards
+
+# Find the controllers
+clist=`sudo cfgadm | awk '/fc/ {print $1}'`
+
+# For each controller cfgadm and luxadm
+for ci in `echo ${clist}` ;  do
+     echo configure $ci
+     sudo cfgadm -c configure $ci
+     # sudo luxadm -e forcelip /dev/cfg/${ci}
+     sleep 5
+done
+ 
+echo devfsadm
+sudo devfsadm  -vC
