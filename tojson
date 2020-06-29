@@ -1,0 +1,12 @@
+#!/opt/chefdk/embedded/bin/ruby
+
+require 'json'
+
+unless ARGV[0]
+  puts 'Usage tojson filename'
+  exit 8
+end
+
+a = File.read(ARGV[0])
+
+puts a.to_json
