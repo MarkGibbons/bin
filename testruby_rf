@@ -1,0 +1,67 @@
+#!/opt/chefdk/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def file_contents(project, file, ref)
+  begin
+    client.file_contents(project, file, ref)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+end
+
+def file_status(project, file, ref)
+  begin
+    client.get_file(project, file, ref)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+end
+
+def repo_tree(project)
+  begin
+    client.repo_tree(project)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+end
+
+def repo_archive(project)
+  begin
+    client.repo_archive(project)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+end
+
+def client
+  @client ||= Gitlab.client(endpoint: 'https://git-staging.nonprod.dots.vip.nordstrom.com/api/v4', private_token: 'rDvpye3MLeTQusSN_Gxw')
+end
+
+
+project = 'chef/organizations/testorg/chef-repo'
+file = 'Menufile'
+dev = 'environments/development.rb'
+
+puts 'Status Menufile'
+pp file_status(project, file, 'master').to_h
+
+puts
+puts
+puts 'Status development'
+pp file_status(project, dev, 'master').to_h
+
+puts
+puts
+puts 'Contents'
+pp file_contents(project, file, 'master')
+
+puts
+puts
+puts 'repo tree'
+pp repo_tree(project)
+
+puts
+puts
+puts 'repo archive'
+pp repo_archive(project)

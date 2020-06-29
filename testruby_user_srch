@@ -1,0 +1,40 @@
+#!/opt/chefdk/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def user_search(user)
+  begin
+    @results = client.user_search(user)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @results
+end
+
+def client
+  @client ||= Gitlab.client(endpoint: @url, private_token: @token)
+end
+
+
+@token = `knife vault show restaurant gitlab_production | awk '/key:/ {print $2}'`.chomp
+@url = 'https://gitlab.nordstrom.com/api/v4'
+users = [
+  'Jeff.Oliver',
+]
+   # 'Decker, Jeremy',
+   # 'Hubbell, Shannon',
+   # 'Rhoades, Matthew'
+   # 'Pappachan, Ancy',
+   # 'Pb, Sunitha',
+
+users.each do |user|
+  puts
+  puts user
+  pp user_search(user)[0].id
+end
+
+#users.each_page do |page|
+#  page.each do |usr|
+#    pp "#{usr.id} #{usr.username}"
+#  end
+#end

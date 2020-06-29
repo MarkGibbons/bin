@@ -1,0 +1,18 @@
+#!/opt/chefdk/embedded/bin/ruby
+
+class Test
+   def id
+     a = yield
+     puts a
+   end
+end
+
+class Rate_Locate
+  @@limit ||= Test.new
+  def limit
+    @@limit
+  end
+end
+
+lim1 = Rate_Locate.new.limit
+lim1.id { puts 'hh'; 2 }

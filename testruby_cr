@@ -1,0 +1,63 @@
+#!/opt/chefdk/embedded/bin/ruby
+require 'cgi'
+require 'gitlab'
+require 'json'
+require 'net/http'
+require 'pp'
+
+  def http_get_json(uri, headers)
+    require 'net/http'
+    require 'json'
+
+    uri = URI.parse(uri)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+    request = Net::HTTP::Get.new(uri.request_uri)
+    headers.each do |key, value|
+      request[key] = value
+    end
+    JSON.parse(http.request(request).body)
+  end
+
+  def namespace_id(namespace_string)
+    # This is an either or thing.
+    # Either you need to make a call to the GitLab API
+    # or just HTTP encode the namesapce
+    # e.g., chef/foo/bar/ becomes chef%2Ffoo%2Fbar
+    require 'cgi'
+    headers = {
+      'PRIVATE-TOKEN' => 'YetfkBKAzrpHXycsqKCq',
+      'Accept' => '*/*',
+      'User-Agent' => 'curl/7.29.0',
+    }
+    namespace = http_get_json("https://gitlab.nordstrom.com/api/v4/namespaces/#{CGI.escape(namespace_string)}", headers)
+    # TODO: handle http_get_json failures.  404- names space does not exist
+    namespace['id']
+  end
+
+def project_create(namespace, project)
+  begin
+    options =  {
+      namespace_id: namespace_id(namespace),
+      # namespace_id: CGI.escape(namespace),
+      visibility: 'private',
+      approvals_before_merge: 1,
+      merge_requests_enabled: true,
+      only_allow_merge_if_pipeline_succeeds: true,
+    }
+    @project_status ||= client.create_project(project, options)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @project_create
+end
+
+def client
+  @client ||= Gitlab.client(endpoint: 'https://gitlab.nordstrom.com/api/v4', private_token: 'YetfkBKAzrpHXycsqKCq')
+end
+
+
+namespace = 'chef/cookbooks'
+project = 'testbook2'
+pp project_create(namespace, project).to_h
+

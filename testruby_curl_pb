@@ -1,0 +1,92 @@
+#!/opt/chefdk/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def project_branches(namespace, project)
+  begin
+    puts "Branches for #{namespace}/#{project}"
+    @project_branches ||= client.branches("#{namespace}/#{project}", {page: 0})
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @project_branches
+end
+
+def project_branch(namespace, project)
+  begin
+    puts "Master branch for #{namespace}/#{project}"
+    @project_branch ||= client.branch("#{namespace}/#{project}", 'master')
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @project_branch
+end
+
+def protected_branch(namespace, project)
+  begin
+    puts "Protected branch for #{namespace}/#{project}"
+    @protected_branch ||= client.protected_branch("#{namespace}/#{project}", 'master')
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @protected_branch
+end
+
+def protect_branch(namespace, project)
+  begin
+    puts "Protect branch for #{namespace}/#{project}"
+    @protect_branch ||= client.protect_branch("#{namespace}/#{project}", 'master',  { "push_access_levels"=>[{"access_level"=>0, "access_level_description"=>"No one", "user_id"=>nil, "group_id"=>nil}], "merge_access_levels"=>[{"access_level"=>30, "access_level_description"=>"Developers + Masters", "user_id"=>nil, "group_id"=>nil}] })
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @protect_branch
+end
+
+def unprotect_branch(namespace, project)
+  begin
+    puts "Unprotect branch for #{namespace}/#{project}"
+    @unprotect_branch ||= client.unprotect_branch("#{namespace}/#{project}", 'master')
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @unprotect_branch
+end
+
+def client
+  @client ||= Gitlab.client(endpoint: 'https://git-staging.nonprod.dots.vip.nordstrom.com/api/v4', private_token: @token)
+end
+
+
+@token = `knife vault show restaurant gitlab_staging | awk '/key:/ {print $2}'`.chomp
+@url = 'https://git-staging.nonprod.dots.vip.nordstrom.com/api/v4'
+namespace = 'chef/cookbooks'
+project = 'testbook'
+pp protected_branch(namespace, project)
+# puts
+# puts `curl --header "PRIVATE-TOKEN: #{@token}" #{@url}/projects/chef%2fcookbooks%2Ftestbook`
+# puts
+# puts `curl --header "PRIVATE-TOKEN: #{@token}" #{@url}/projects/chef%2fcookbooks%2Ftestbook/protected_branches`
+# puts
+puts 'delete protected branch'
+puts `curl --request DELETE  --header "PRIVATE-TOKEN: #{@token}" #{@url}/projects/chef%2Fcookbooks%2Ftestbook/protected_branches/master`
+puts
+puts 'protected branch after delete'
+puts `curl --header "PRIVATE-TOKEN: #{@token}" #{@url}/projects/chef%2fcookbooks%2Ftestbook/protected_branches`
+puts
+puts 'Set protected branch'
+puts `echo '#{@url}/projects/chef%2Fcookbooks%2Ftestbook/protected_branches?name=master&push_access_level=0&merge_access_level=30&unprotect_access_level=40'`
+puts `curl --request POST  --header "PRIVATE-TOKEN: #{@token}" '#{@url}/projects/chef%2Fcookbooks%2Ftestbook/protected_branches?name=master&push_access_level=0&merge_access_level=30&unprotect_access_level=40'`
+puts
+puts 'Display protected'
+puts `curl -H "Accept: application/json" -H "Accept: application/json" --header "PRIVATE-TOKEN: #{@token}" #{@url}/projects/chef%2fcookbooks%2Ftestbook/protected_branches`
+puts
+puts 'delete protected branch'
+puts `curl --request DELETE  --header "PRIVATE-TOKEN: #{@token}" #{@url}/projects/chef%2Fcookbooks%2Fnomaster/protected_branches/master`
+puts
+puts 'Set protected branch'
+puts `echo '#{@url}/projects/chef%2Fcookbooks%2Fnomaster/protected_branches?name=master&push_access_level=0&merge_access_level=30&unprotect_access_level=40'`
+puts `curl --request POST  --header "PRIVATE-TOKEN: #{@token}" '#{@url}/projects/chef%2Fcookbooks%2Fnomaster/protected_branches?name=master&push_access_level=0&merge_access_level=30&unprotect_access_level=40'`
+puts
+puts 'Display protected'
+puts `curl -H "Accept: application/json" -H "Accept: application/json" --header "PRIVATE-TOKEN: #{@token}" #{@url}/projects/chef%2fcookbooks%2Fnomaster/protected_branches`
+puts

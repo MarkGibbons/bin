@@ -1,0 +1,82 @@
+#!/opt/chef-workstation/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def project_branches(namespace, project)
+  begin
+    puts "Branches for #{namespace}/#{project}"
+    @project_branches ||= client.branches("#{namespace}/#{project}", {page: 0})
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @project_branches
+end
+
+def project_branch(namespace, project)
+  begin
+    puts "Master branch for #{namespace}/#{project}"
+    @project_branch ||= client.branch("#{namespace}/#{project}", 'master')
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @project_branch
+end
+
+def protected_branch(namespace, project)
+  begin
+    puts "Protected branch for #{namespace}/#{project}"
+    @protected_branch ||= client.protected_branch("#{namespace}/#{project}", 'master')
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @protected_branch
+end
+
+def protect_branch(namespace, project)
+  begin
+    puts "Protect branch for #{namespace}/#{project}"
+    @protect_branch ||= client.protect_branch("#{namespace}/#{project}", 'master',  { "push_access_levels"=>[{"access_level"=>0, "access_level_description"=>"No one", "user_id"=>nil, "group_id"=>nil}], "merge_access_levels"=>[{"access_level"=>30, "access_level_description"=>"Developers + Masters", "user_id"=>nil, "group_id"=>nil}] })
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @protect_branch
+end
+
+def unprotect_branch(namespace, project)
+  begin
+    puts "Unprotect branch for #{namespace}/#{project}"
+    @unprotect_branch ||= client.unprotect_branch("#{namespace}/#{project}", 'master')
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @unprotect_branch
+end
+
+def client
+  @client ||= Gitlab.client(endpoint: 'https://git-staging.nonprod.dots.vip.nordstrom.com/api/v4', private_token: @token)
+end
+
+
+@token = `knife vault show restaurant gitlab_staging | awk '/key:/ {print $2}'`.chomp
+namespace = 'chef/cookbooks'
+project = 'testbook'
+pp project_branches(namespace, project)
+pp project_branch(namespace, project)
+
+puts
+puts "Protected branch"
+pp protected_branch(namespace, project)
+puts
+puts 'unprotect'
+pp unprotect_branch(namespace, project)
+sleep 5
+puts
+puts 'After unprotecting the branch'
+pp protected_branch(namespace, project)
+puts
+puts 'protect the branch'
+pp protect_branch(namespace, project)
+
+puts
+puts 'protected the branch'
+pp protected_branch(namespace, project)

@@ -1,0 +1,25 @@
+#!/opt/chefdk/embedded/bin/ruby
+
+class Rate
+  def initialize
+    @me = Time.now
+    sleep 1
+    @@limit ||= self
+  end
+
+  def limit
+    @@limit
+  end
+
+  def me
+    @me
+  end
+end
+
+first = Rate.new
+second = Rate.new
+limit = second.limit
+
+puts "First #{first.me}"
+puts "Second #{second.me}"
+puts "Limit #{limit.me}"

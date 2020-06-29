@@ -1,0 +1,50 @@
+#!/opt/chefdk/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def user_info(user)
+  begin
+    client.user(user)
+  rescue Gitlab::Error::NotFound
+    return {}
+  end
+end
+
+def approve_group_access_request(group, user, level)
+  # https://docs.gitlab.com/ee/api/members.html
+  # level 50 = owner
+  # level 40 = maintainer
+  # level 30 = developer
+  # level 20 = reporter
+  # level 10 = guest
+  begin
+    client.approve_group_access_request(group, user, level)
+  rescue Gitlab::Error::NotFound
+    return {}
+  end
+end
+
+def group_access_requests(group)
+  begin
+    client.group_access_requests(group)
+  rescue Gitlab::Error::NotFound
+    return []
+  end
+end
+
+def client
+  @client ||= Gitlab.client(endpoint: @endpoint,  private_token: @token)
+end
+
+# @endpoint = 'https://git-staging.nonprod.dots.vip.nordstrom.com/api/v4'
+# @token = `knife vault show restaurant gitlab_staging | awk '/key:/ {print $2}'`.chomp
+@endpoint = 'https://gitlab.nordstrom.com/api/v4'
+@token = `knife vault show restaurant gitlab_production | awk '/key:/ {print $2}'`.chomp
+group = 'chef'
+group_access_requests(group).each do |user|
+  puts
+  pp user.to_h
+
+  puts
+  pp approve_group_access_request(group, user.id, '30')
+end

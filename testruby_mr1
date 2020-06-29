@@ -1,0 +1,20 @@
+#!/opt/chefdk/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def merge_request(name)
+  begin
+    @mr ||= client.create_merge_request(name, 'Merge test', { source_branch: 'newbranch', target_branch: 'master' } )
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @mr
+end
+
+def client
+  @client ||= Gitlab.client(endpoint: 'https://git-staging.nonprod.dots.vip.nordstrom.com/api/v4', private_token: 'rDvpye3MLeTQusSN_Gxw')
+end
+
+namespace = 'chef/cookbooks'
+project = 'testbook'
+client.accept_merge_request(URI.encode("#{namespace}/#{project}"), 1)

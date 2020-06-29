@@ -1,0 +1,33 @@
+#!/opt/chef-workstation/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def project_hooks(name)
+  begin
+    @project_hooks ||= client.project_hooks(name)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @project_hooks
+end
+
+def method_missing(name, *args)
+  puts "NAME #{name}"
+  puts "ARGS #{args}"
+  @project_hooks[name.to_s] if @project_hooks
+end
+
+def client
+  @client ||= Gitlab.client(endpoint: 'https://git-staging.nonprod.dots.vip.nordstrom.com/api/v4', private_token: 'BDt-XRmMbRKNRdwXN3Nz')
+end
+
+namespace = 'chef/organizations/testorg'
+project = 'chef-repo'
+pp "PROJECTHOOK Call #{project_hooks(URI.encode("#{namespace}/#{project}")).inspect}"
+puts '========================='
+@project_hooks.each do |ph|
+  pp ph.to_h
+end
+puts '========================='
+pp project_hooks(0, push_events)
+pp project_hooks(0, created_at)

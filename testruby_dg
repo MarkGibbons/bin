@@ -1,0 +1,4 @@
+#!/opt/chefdk/embedded/bin/ruby
+require 'json'
+require 'datadog/statsd'
+

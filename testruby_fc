@@ -1,0 +1,20 @@
+#!/opt/chefdk/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def project_status(namespace, project)
+  begin
+    pp "Client returned #{client}"
+    @project_status ||= client.project("#{namespace}/#{project}")
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @project_status
+end
+
+def client
+  @client ||= Gitlab.client(endpoint: 'https://git-staging.nonprod.dots.vip.nordstrom.com/api/v4', private_token: 's6kTQxmkvHgQph_CjRMf')
+end
+
+pp 'Got here'
+pp client.file_contents('chef/cookbooks', 'accumulator', 'master')

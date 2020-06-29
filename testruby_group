@@ -1,0 +1,85 @@
+#!/opt/chefdk/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def groups
+  begin
+    client.groups({per_page: 2000, page: 0})
+  rescue Gitlab::Error::NotFound
+    return []
+  end
+end
+
+def subgroups(group)
+  begin
+    client.group_subgroups(groups, {all_available: true})
+  rescue Gitlab::Error::NotFound
+    return {}
+  end
+end
+
+def group_status(group)
+  begin
+    client.group(group)
+  rescue Gitlab::Error::NotFound
+    return {}
+  end
+end
+
+def group_members(group)
+  begin
+    client.group_members(group, {per_page: 1000} )
+  rescue Gitlab::Error::NotFound
+    return {}
+  end
+end
+
+def client
+ @client ||= Gitlab.client(endpoint: @url, private_token: @token)
+end
+
+
+@token = `knife vault show restaurant gitlab_staging|awk '/key:/ {print $2}'`.chomp
+@url = 'https://git-staging.nonprod.dots.vip.nordstrom.com/api/v4'
+pp "Get"
+group = 'chef/cookbooks'
+group_id = '10270'
+# pp "Single group number #{group_status(group_id)}"
+# pp "Single group #{group_status(group)}"
+puts
+pp 'curl chef cookbooks escaped'
+pp `curl -i --header "PRIVATE-TOKEN: #{@token}" #{@url}/groups/chef%2fcookbooks`
+
+puts
+pp 'curl 10270 chef/cookbooks'
+pp `curl -i --header "PRIVATE-TOKEN: #{@token}" #{@url}/groups/10270`
+
+puts
+pp 'curl 10267 chef'
+pp `curl -i --header "PRIVATE-TOKEN: #{@token}" #{@url}/groups/10267`
+
+puts
+pp "top group #{group_status('chef')}"
+
+puts
+pp "sub group #{subgroups('chef')}"
+pp "sub group number #{subgroups('10267')}"
+
+puts
+pp 'Groups each'
+groups.each_page do |p|
+ # pp p.inspect
+ # pp "id #{p.id} name #{p.name} path #{p.path}"
+ p.each do |g| 
+   puts
+   pp "#{g.full_path} #{g.id}"
+ end
+end
+pp groups.next_page
+# pp group_status(group)
+#  rescue Gitlab::Error::TooManyRequests
+#    puts  "Too Many"
+#    sleep 5
+#  rescue Gitlab::Error::Parsing
+#    puts 'failing'
+#    sleep 3

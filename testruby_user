@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+require 'gitlab'
+require 'pp'
+
+def users
+  begin
+    @users ||= client.users({page: 0, per_page: 2000})
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @users
+end
+
+def client
+  @client ||= Gitlab.client(endpoint: @url, private_token: @token)
+end
+
+
+@token = `knife vault show restaurant gitlab_production | awk '/key:/ {print $2}'`.chomp
+@url = 'https://gitlab.nordstrom.com/api/v4'
+# @url = 'https://git-staging.nonprod.dots.vip.nordstrom.com/api/v4'
+users.each_page do |page|
+  page.each do |usr|
+    pp "#{usr.id} #{usr.username}"
+  end
+end

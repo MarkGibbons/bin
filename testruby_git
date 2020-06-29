@@ -1,0 +1,26 @@
+#!/opt/chefdk/embedded/bin/ruby
+require 'fileutils'
+require 'json'
+require 'git'
+
+def git_push
+  @my_git.config('user.name', 'oppvcomnix')
+  @my_git.config('user.email', 'itunixadminall@nordstrom.net')
+  @my_git.add(all: true)
+  @my_git.commit_all("vCommander adding host: #{@hostname} to from xymon. Check log: [#{@log_file}] for more info.")
+  @my_git.push('origin', 'master', {})
+end
+
+# git ssh wrapper
+Git.configure do |config|
+  config.git_ssh = '/Users/xmjg/bin/gitlab_ssh'
+end
+
+FileUtils.rm_rf('testrepo')
+@my_git = Git.clone('git@gitlab.nordstrom.com:chef/cookbooks/xmjgtestrepo.git', 'testrepo')
+open('testrepo/update', 'a') do |f|
+ f.puts "Add this #{Time.now}"
+end
+git_push
+
+
