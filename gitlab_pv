@@ -1,0 +1,56 @@
+#!/usr/bin/env ruby
+#
+#  Set up
+#
+#      Install ruby  - brew install ruby
+#      Fix path to make sure ruby is findable
+#      Install the gitlab gem - ruby install gitlab
+#      Set the name space on line 40 of this file
+#      Make sure these environment variables are set 'GITLAB_ID' ''GITLAB_TOKEN'
+#
+#
+#  Use
+#      ./gitlab_pv <project> to show the environment variables for a project
+#      Current output is the variable name, value and scope, adjust the code and sorting as required
+#
+require 'gitlab'
+require 'pp'
+require 'erb'
+
+def project_variables(name)
+  begin
+    @project_variables ||= client.variables(name)
+  rescue Gitlab::Error::NotFound
+    puts "Nothing found"
+    return nil
+  end
+  @project_variables
+end
+
+#def method_missing(name, *args)
+#  @project_variables[name.to_s] if @project_variables
+#end
+
+def client
+  id = ENV['GITLAB_ID']
+  token = ENV['GITLAB_TOKEN']
+  @client ||= Gitlab.client(endpoint: 'https://gitlab.com/api/v4', auth_token: token, per_page: 100)
+end
+
+namespace = 'ftdr/ahs_ecomm'
+if ARGV.length < 1
+   puts "Usage ./gitlab_pv <projectname>"
+   exit 8
+end
+project = ARGV[0] unless project 
+project_variables("#{namespace}/#{project}")  # needs to be URI.encoded
+variables = []
+@project_variables.auto_paginate do |pv|
+  variables.push(pv.to_h)
+end
+
+sortv = variables.sort { |a,b| a["key"] <=> b["key"] }
+
+sortv.each do |v|
+  puts "#{v["key"]} #{v["value"]} #{v["environment_scope"]}"
+end
