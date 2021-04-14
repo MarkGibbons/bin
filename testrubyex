@@ -1,0 +1,10 @@
+#!/bin/bash
+pgmbase=`dirname "$0"`
+echo $pgmbase
+
+if ${pgmbase}/testruby ; then
+  echo "$? zero"
+else
+  echo "$? fail"
+fi
+

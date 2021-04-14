@@ -1,0 +1,34 @@
+#!/opt/chef-workstation/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def project_variables(name)
+  begin
+    @project_variables ||= client.variables(name)
+  rescue Gitlab::Error::NotFound
+    return nil
+  end
+  @project_variables
+end
+
+def method_missing(name, *args)
+  puts "NAME #{name}"
+  puts "ARGS #{args}"
+  @project_variables[name.to_s] if @project_variables
+end
+
+def client
+  token = ENV('GITLAB_TOKEN')
+  puts "TOKEN #{token}"
+  token = 'DB2qCa1w-c2V_6XHqfE-'
+  @client ||= Gitlab.client(endpoint: 'https://gitlab.com/ftdr/api/v4', private_token: token)
+end
+
+namespace = 'ahs_ecomm'
+project = 'contract-order-listener'
+pp "PROJECTVARIABLES Call #{project_variables(URI.encode("#{namespace}/#{project}")).inspect}"
+puts '========================='
+@project_variables.each do |pv|
+  pp pv.to_h
+end
+puts '========================='

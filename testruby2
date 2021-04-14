@@ -1,0 +1,9 @@
+#!/opt/chefdk/embedded/bin/ruby
+
+puts "Current #{Dir.pwd}"
+$LOAD_PATH.unshift('/Users/xmjg')
+# $LOAD_PATH.unshift('/Users/xmjg/bin')
+puts $LOAD_PATH
+
+Kernel.load('./bin/testruby3')
+Kernel.load('./bin/testruby3')

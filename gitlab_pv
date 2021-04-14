@@ -6,16 +6,16 @@
 #      Fix path to make sure ruby is findable
 #      Install the gitlab gem - ruby install gitlab
 #      Set the name space on line 40 of this file
-#      Make sure these environment variables are set 'GITLAB_ID' ''GITLAB_TOKEN'
-#
 #
 #  Use
 #      ./gitlab_pv <project> to show the environment variables for a project
 #      Current output is the variable name, value and scope, adjust the code and sorting as required
 #
+#
+#
 require 'gitlab'
 require 'pp'
-require 'erb'
+require 'json'
 
 def project_variables(name)
   begin
@@ -37,19 +37,24 @@ def client
   @client ||= Gitlab.client(endpoint: 'https://gitlab.com/api/v4', auth_token: token, per_page: 100)
 end
 
-namespace = 'ftdr/ahs_ecomm'
 if ARGV.length < 1
    puts "Usage ./gitlab_pv <projectname>"
    exit 8
 end
+namespace = 'ftdr/ahs_ecomm'
 project = ARGV[0] unless project 
+if project == "orders" || project == "contract"
+  namespace = 'ftdr/software'
+end
 project_variables("#{namespace}/#{project}")  # needs to be URI.encoded
 variables = []
 @project_variables.auto_paginate do |pv|
   variables.push(pv.to_h)
 end
 
-sortv = variables.sort { |a,b| a["key"] <=> b["key"] }
+sortv = variables.sort_by { |a| [a["key"], a['environment_scope']] }
+vf = File.open("variables.#{project}",File::CREAT|File::TRUNC|File::RDWR , 06444)
+vf.puts JSON.pretty_generate(sortv)
 
 sortv.each do |v|
   puts "#{v["key"]} #{v["value"]} #{v["environment_scope"]}"

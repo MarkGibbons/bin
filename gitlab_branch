@@ -1,0 +1,65 @@
+#!/opt/chef-workstation/embedded/bin/ruby
+require 'gitlab'
+require 'pp'
+
+def branches(project)
+  begin
+    puts "project #{project}"
+    @branches = client.branches(project)
+  rescue Gitlab::Error::NotFound
+    puts "Nothing found"
+    return nil
+  end
+  @branches
+end
+
+def unprotect_branch(project, branch)
+  begin
+    puts "project #{project}"
+    puts "branch #{branch}"
+    @unprotect_branch = client.unprotect_branch(project, branch)
+  rescue Gitlab::Error::NotFound
+    puts "Nothing found"
+    return nil
+  end
+end
+
+def protect_branch(project, branch)
+  begin
+    puts "project #{project}"
+    puts "branch #{branch}"
+    @protect_branch = client.protect_branch(project, branch, {developers_can_merge: true})
+  rescue Gitlab::Error::NotFound
+    puts "Nothing found"
+    return nil
+  end
+end
+
+def client
+  id = ENV['GITLAB_ID']
+  token = ENV['GITLAB_TOKEN']
+  @client ||= Gitlab.client(endpoint: 'https://gitlab.com/api/v4/', auth_token: token)
+end
+
+namespace = 'ftdr/ahs_ecomm'
+
+if ARGV.length < 3 
+  puts "usage: gitlab_branch action project branch"
+  exit 1
+end
+
+action = ARGV[0]
+project = ARGV[1]
+branch = ARGV[2]
+
+namespace = 'ftdr/software' if project == 'orders' 
+
+if action =~ /^un/ 
+  unprotect_branch(URI.encode("#{namespace}/#{project}"), branch)
+  puts "Unprotect #{@unprotect_branch.inspect}"
+end
+
+if action =~ /^pro/ 
+  protect_branch(URI.encode("#{namespace}/#{project}"), branch)
+  puts "Protect #{@protect_branch.inspect}"
+end

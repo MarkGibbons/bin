@@ -1,0 +1,17 @@
+#!/opt/chef-workstation/embedded/bin/ruby
+
+lines = `curl https://api.github.com/users/sous-chefs/repos\?per_page\=400\   | grep open_issues_count`.split("\n")
+
+issues = 0
+lines.each do |line|
+  md = /open_issues_count":\s*(?<count>\d+)/.match(line)
+  if md
+    issues += md[:count].to_i
+  end
+end
+puts "# #{Time.now} open sous-chefs issues and pull requests: #{issues}"
+
+# 2020-08-04 18:16:18 -0700 open sous-chefs issues and pull requests: 420 
+# 2020-08-05 11:10:34 -0700 open sous-chefs issues and pull requests: 419
+# 2020-08-16 11:57:15 -0700 open sous-chefs issues and pull requests: 422
+# 2020-09-25 06:18:58 -0700 open sous-chefs issues and pull requests: 590

@@ -1,0 +1,31 @@
+#!/bin/bash -ex
+
+repo=$1
+homedir=$(pwd)
+group='ahs_ecomm'
+
+# if repo is orders change group to software
+if [[ ${repo} == "orders" ]]; then
+  group='software'
+fi
+
+# get the repository and master branch
+tmp_dir=$(mktemp -d -t dt-XXXXXXXX)
+cd ${tmp_dir}
+git clone git@gitlab.com:ftdr/${group}/${repo}.git
+cd ${repo}
+
+# list changes that will be lost
+echo
+echo "Commits ahead on dev-test"
+git --no-pager log origin/master..origin/dev-test
+echo
+
+# unprotect dev-test
+${homedir}/gitlab_branch un ${repo} dev-test
+
+# update dev-test from the master branch
+git push -f origin master:dev-test
+
+# protect dev-test
+${homedir}/gitlab_branch pro ${repo} dev-test
